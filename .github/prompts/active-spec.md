@@ -1,24 +1,33 @@
-# LockClaw Appliance — Active Spec
-> **Phone → GitHub → VS Code bridge**
-> **User:** iwes247 (iwes247@users.noreply.github.com)
+# LockClaw Core — Active Spec
 
-- GitHub user: iwes247
-- Never push as your work user. Verify: git config user.name → iwes247
-—
+> **This file is the phone-to-VSCode bridge.**
+> Edit from your phone (via GPT) → push → pull in VS Code → Copilot reads and executes.
 
 ## Project summary
-Full OS-level hardened Linux appliance for VMs and bare metal. 
 
-### Architecture
-- overlays/etc/security/ ← kernel, SSH, audit, fail2ban
-- overlays/etc/network/ ← nftables firewall, resolver
-- scripts/ ← build, smoke test, audit tooling
-- lockclaw-core/ ← shared audit scripts + port allowlists
-—
+lockclaw-core contains shared policy definitions, audit scripts, and port
+allowlists consumed by lockclaw-baseline and lockclaw-appliance. It is
+vendored into each consuming repo at `lockclaw-core/`.
 
-## Current Task
-[PHONE USERS: Replace this with your task. Copilot will read this.]
-—
+## Contents
 
-## Session History
-_No active sessions. Run `sync-vibe` at work to populate._
+```
+audit/audit.sh         ← policy file validation
+audit/port-check.sh    ← allowlist-driven port audit (hard-fail)
+policies/ports/        ← per-profile port allowlists (JSON)
+policies/ssh-*         ← required SSH posture values
+policies/sysctl-*      ← required sysctl values (appliance only)
+scanner/security-scan.sh ← AIDE + rkhunter + Lynis wrapper
+docs/                  ← threat model template
+```
+
+## Current task
+
+TASK_START
+[READY FOR NEXT VIBE]
+TASK_END
+
+## History
+
+HISTORY_START
+HISTORY_END
