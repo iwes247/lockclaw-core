@@ -22,108 +22,244 @@ docs/                  ← threat model template
 ```
 
 ## Current Task
-**Task:** Finish and publish the “Repo Clarity Pass” across the 3 repos so a newcomer can pick the right repo in <15 seconds.
+# LOCKCLAW v1 ENFORCEMENT + DEAD CODE CLEANUP (OUTBOUND ENFORCEMENT DEFERRED)
 
-### Scope (Repos)
-- `LockClaw-baseline`
-- `lockclaw-appliance`  (make sure EVERYTHING says **appliance**, not “application”)
-- `LockClaw-core` (source of truth for the spec lives here)
+You are performing a surgical refactor across the LockClaw repos.
 
-**NOTE:** The current published READMEs do not yet show the shared “Start Here (Pick One)” chooser / diagram / success checklist in baseline + appliance, and `lockclaw-core` does not clearly expose a “Stability Contract” section. Also, `lockclaw-core/.github/prompts/active-spec.md` appears stale (“READY FOR NEXT VIBE”) compared to what’s actually published.
+Repos in scope:
+- lockclaw-core
+- lockclaw-baseline
+- lockclaw-appliance
 
-—
+Goal:
+Ship LockClaw v1 as a fail-closed baseline for containerized AI runtimes.
 
-## Pseudocode Logic (Architect’s Plan)
-1. **SCAN:** Open each repo README and capture the first-screen content (top ~40 lines). Note:
-   - Tagline clarity
-   - Who it’s for
-   - What it does NOT do
-   - Cross-links correctness
-   - Any “application vs appliance” naming drift
-2. **NORMALIZE:** Standardize naming everywhere:
-   - Brand: “LockClaw”
-   - Repo names: `LockClaw-baseline`, `lockclaw-appliance`, `LockClaw-core`
-   - Eliminate “application” references entirely
-3. **INSERT (ALL 3 READMEs):** Add the same three sections (identical wording) near the top:
-   - **Start Here (Pick One):** A short decision tree mapping use-cases to the correct repo
-   - **How the repos fit together:** Include a small ASCII diagram showing baseline/appliance consuming core
-   - **Success looks like:** 4–6 observable outcomes (no commands)
-4. **INSERT (CORE ONLY):** Add two sections to `LockClaw-core` README:
-   - **Stability Contract:** Explicit stable surfaces (paths/formats/schemas) vs internal/unstable
-   - **Versioning & Compatibility:** Tag strategy (e.g., `core-vX.Y.Z`), what counts as breaking, and how baseline/appliance pin + upgrade
-5. **REINFORCE (BASELINE ONLY):** Add a prominent warning box in the first screen:
-   - “Baseline is NOT host hardening”
-   - “Assumes host is already reasonably secured”
-   - “No published ports by default”
-6. **METADATA:** Add/update GitHub “About” descriptions + topics for all three repos (especially `LockClaw-core`)
-7. **UPDATE SPEC:** Refresh `lockclaw-core/.github/prompts/active-spec.md` so it describes THIS task (not “READY FOR NEXT VIBE”)
-8. **VALIDATE:** Re-open each README and confirm a newcomer can answer quickly:
-   - Which repo do I use?
-   - What does it do?
-   - What does it NOT do?
-   - Where do I go next? (links correct, no 404s)
+v1 focus: prevent self-inflicted exposure from unsafe container configuration.
+Outbound **enforcement** is explicitly deferred (baseline will log posture; appliance can enforce later).
+
+DO NOT expand scope.
+DO NOT add features.
+DO NOT introduce new repos.
+DO NOT introduce heavy dependencies.
+DO NOT implement firewall-level networking.
+DO NOT add dashboards or SaaS components.
+
+This is an enforcement + cleanup pass.
 
 —
 
-## Red-Teamer Constraints (Safety Rails)
-- **No Security Claim Drift:** Do NOT imply baseline secures the host (firewall/ssh/audit are appliance scope).
-- **No Behavior Changes:** Documentation + metadata only; do not change defaults, privileges, entrypoints, or capabilities.
-- **No Core-as-Install Confusion:** Core must clearly read as a shared library/policies repo; most users should not clone it directly.
-- **IPv6 Wording:** Avoid misleading statements; phrase as “bind to localhost/loopback” without implying firewall guarantees.
-- **Link Integrity:** All cross-links must resolve and point to correct repo names; eliminate any `LockClaw-application` references.
+# FROZEN IDENTITY
+
+LockClaw enforces locked-down defaults for containerized AI runtimes.
+It prevents accidental exposure caused by unsafe container configuration.
+
+It does not inspect agent logic.
+It does not replace host security controls.
+It does not enforce outbound network restrictions in baseline v1 (deferred to appliance/advanced setups).
+
+All code and README updates must align with this.
 
 —
 
-## Acceptance Criteria
-- Every README has: **Start Here (Pick One)** + **Repo Fit Diagram** + **Success looks like** in the top portion.
-- Baseline README includes a **blunt warning box** that it is not host hardening.
-- Core README includes **Stability Contract** + **Versioning & Compatibility** sections.
-- All links resolve (no 404s), and naming is consistent (“appliance” everywhere).
-- Core spec file reflects current work and is not stale.
+# PHASE 1 — REMOVE DEAD CODE (AGGRESSIVE BUT SAFE)
+
+Across all repos:
+
+1) Remove:
+- Unused scripts and stale helpers not invoked by entrypoint/compose/CI
+- Duplicate pre-flight logic (keep only one authoritative preflight in core)
+- Hardcoded port allowlists in baseline scripts (must defer to core policy)
+- Any experimental firewall logic not used in v1
+- Any “Lab mode” references
+- Any claims of URL logging or domain allowlists that are not implemented
+- Any duplicated policy definitions
+
+2) Ensure:
+- lockclaw-core is the single source of truth for policy and preflight enforcement
+- baseline contains wiring and defaults only
+- appliance remains host-level hardening documentation + optional hard controls
+
+If unsure whether code is needed:
+Prefer delete.
+Keep diffs minimal and revertible.
 
 —
 
-## Verification Command
-Manual verification (fast):
-- Open each README in GitHub web UI:
-  - Confirm the chooser exists in the first screenful
-  - Confirm cross-links go to correct repos
-  - Confirm baseline warning box is prominent
-  - Confirm core has Stability Contract + Versioning sections
+# PHASE 2 — POLICY CONSOLIDATION (lockclaw-core)
 
-Optional local check (if needed):
-- `git grep -i “application” -n` in each repo and confirm zero matches (except historical changelog notes if any).
+Create:
+- policies/modes/hobby.json
+- policies/modes/builder.json
+
+Each must define:
+- mode
+- allowed_ports (explicit list OR reference a profile, but must be consistent)
+- writable_paths ([“/data”])
+- egress_policy (“allow” in v1 baseline; outbound enforcement deferred)
+- egress_logging (“none” or “banner_only” in v1 baseline)
+- notes (short strings used in logs)
+
+Update:
+- policies/ports/container.json
+Ensure it matches v1 reality.
+Remove ambiguity.
+No conflicting allowlists.
+
+Create or finalize:
+- audit/pre-flight.sh
+
+Pre-flight MUST (fail-closed):
+- Ports: parse listening ports via `ss -ltn` and validate against allowlist
+- Filesystem: verify root filesystem is read-only; verify only `/data` is writable
+- Mounts: detect RW mounts outside `/data` and fail
+- Privilege/caps: fail on dangerous capabilities (SYS_ADMIN, NET_ADMIN, SYS_PTRACE, DAC_OVERRIDE, etc.)
+- Privileged: fail if container is effectively privileged (conservative checks)
+- Startup posture: print a concise summary of enforced posture
+- Exit non-zero on any violation with loud actionable messages
+
+No soft warnings for violations.
+Only warnings allowed are for non-enforced outbound posture (banner only).
 
 —
 
-## Red-Teamer Constraints (Safety Rails)
-- **No Security Claim Drift:** Do NOT imply baseline secures the host (firewall/ssh/audit are appliance scope).
-- **No Behavior Changes:** Documentation + metadata only; do not change defaults, privileges, entrypoints, or capabilities.
-- **No Core-as-Install Confusion:** Core must clearly read as a shared library/policies repo; most users should not clone it directly.
-- **IPv6 Wording:** Avoid misleading statements; phrase as “bind to localhost/loopback” without implying firewall guarantees.
-- **Link Integrity:** All cross-links must resolve and point to correct repo names; eliminate any `LockClaw-application` references.
+# PHASE 3 — BASELINE ENFORCEMENT (lockclaw-baseline)
+
+Update docker-compose.yml:
+
+Must include:
+- read_only: true
+- writable volume only at /data
+- tmpfs mounts for required runtime paths (e.g., /tmp, /run, /var/tmp)
+- security_opt: [“no-new-privileges:true”]
+- cap_drop: [“ALL”] (unless truly required; if required, document why)
+- No published ports by default
+
+Outbound policy:
+- Do NOT implement outbound enforcement in baseline v1.
+- DO log clearly on startup: “Outbound network is allowed; baseline v1 does not enforce egress restrictions.”
+
+Update docker-entrypoint.sh:
+
+- Default LOCKCLAW_MODE=hobby
+- Load mode policy from lockclaw-core
+- Print startup banner:
+  Mode
+  Allowed Ports
+  Writable Paths
+  Root FS: read-only
+  Caps: dropped + no-new-privileges
+  Outbound: allowed (not enforced in baseline v1)
+- Execute core preflight before runtime
+- Abort immediately on failure
+
+Remove any local preflight duplication in baseline.
+If scripts/pre-flight.sh exists, turn it into a stub that delegates to core OR delete it and update references.
 
 —
 
-## Acceptance Criteria
-- Every README has: **Start Here (Pick One)** + **Repo Fit Diagram** + **Success looks like** in the top portion.
-- Baseline README includes a **blunt warning box** that it is not host hardening.
-- Core README includes **Stability Contract** + **Versioning & Compatibility** sections.
-- All links resolve (no 404s), and naming is consistent (“appliance” everywhere).
-- Core spec file reflects current work and is not stale.
+# PHASE 4 — README ALIGNMENT (NO OVERCLAIMS)
+
+Baseline README must include:
+
+Top identity:
+“LockClaw enforces locked-down defaults for containerized AI runtimes.”
+“It prevents accidental exposure caused by unsafe container configuration.”
+
+Sections (tight):
+- What it does (v1 only): ports allowlist, read-only root, /data writable, preflight fail-closed, startup posture logging, Hobby/Builder modes
+- What it is NOT: not a dashboard, not SaaS, not agent firewall, not prompt inspection, not host hardening
+- Quickstart (60 seconds): default run in Hobby mode
+- Threat model bullets: focus on accidental exposure (ports/mounts/privilege). Explicitly say outbound enforcement is not included in baseline v1.
+- Modes: Hobby vs Builder explained plainly (Builder = fewer guardrails only where explicitly allowed; still uses preflight)
+
+Remove:
+- firewall claims
+- tool-call enforcement claims
+- prompt injection mitigation claims
+- URL logging claims
+- “deny outbound” claims in baseline
+
+Appliance README:
+- Clarify appliance is where host-level firewall/auditing/egress controls may live
+- No overlapping claims
 
 —
 
-## Verification Command
-Manual verification (fast):
-- Open each README in GitHub web UI:
-  - Confirm the chooser exists in the first screenful
-  - Confirm cross-links go to correct repos
-  - Confirm baseline warning box is prominent
-  - Confirm core has Stability Contract + Versioning sections
+# TESTING REQUIREMENTS (MUST PASS)
 
-Optional local check (if needed):
-- `git grep -i “application” -n` in each repo and confirm zero matches (except historical changelog notes if any).
+1) Default compose up
+Expected:
+- Hobby mode banner
+- Root FS read-only
+- Only /data writable
+- No published ports
+- Preflight PASSED
+
+2) Fail-fast tests (each must fail preflight + exit non-zero + actionable message):
+- Add a published port mapping
+- Add RW bind mount outside /data
+- Add privileged / dangerous caps (or simulate via config)
+- Start a listener on an unallowlisted port
+
+3) Builder mode:
+LOCKCLAW_MODE=builder
+- Banner shows Builder
+- Still enforces RO FS + mounts + caps + ports
+- Logs outbound is allowed (not enforced)
+
+—
+
+# OUTPUT REQUIREMENTS
+
+- One focused commit per repo (core, baseline, appliance)
+- Minimal diffs
+- No sweeping refactors
+- Remove dead code as you go (prefer delete if unused)
+- Keep names consistent: LOCKCLAW_MODE, /data, Hobby/Builder
+- 
+- # Add: Dead Code Deletion Plan (Reviewable)
+
+Before deleting anything, generate a **Dead Code Deletion Plan** as a markdown list.
+
+## Requirements
+For each candidate file/dir to delete, include:
+- **Path:** `relative/path`
+- **Repo:** core | baseline | appliance
+- **Why it’s dead:** (1 sentence)
+- **Proof it’s unused:** one of:
+  - “Not referenced by compose/entrypoint/CI” (and list what you searched)
+  - “Superseded by core preflight/policy” (and name the replacement path)
+  - “No imports / no exec references” (and list ripgrep terms used)
+- **Risk level:** low | medium | high
+- **If medium/high:** propose a safer alternative (deprecate + stub + TODO) instead of deletion
+
+## Method
+1) Use `rg` (ripgrep) across each repo to find references.
+2) Check `docker-compose.yml`, `docker-entrypoint.sh`, CI workflows (e.g., `.github/workflows/*`), and any `Makefile`/scripts that orchestrate.
+3) Only delete after the plan is printed and validated internally (no user confirmation required, but the plan must exist).
+
+## Output format
+### Deletion Candidates
+- [ ] **Path:** `...`
+  - **Repo:** ...
+  - **Why it’s dead:** ...
+  - **Proof it’s unused:** ...
+  - **Risk:** ...
+  - **Safer alternative (if needed):** ...
+
+### Deferred Candidates (do not delete yet)
+- [ ] **Path:** `...`
+  - **Repo:** ...
+  - **Why deferred:** ...
+  - **Next step:** ...
+
+## Acceptance
+- After deletions, all tests/quickstarts still work.
+- No missing file references.
+- No broken docs links.
+- Preflight + policy are single-source-of-truth in core.
+
+Proceed.
 
 ## History
 
