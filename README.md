@@ -81,7 +81,7 @@ The following are considered **stable API** — breaking changes will bump the m
 | Sysctl requirements | `policies/sysctl-requirements.txt` — `key=value` per line |
 | Audit script interface | `audit/audit.sh --overlay-dir <path>` exits 0 on pass, 1 on fail |
 | Port-check interface | `audit/port-check.sh --profile <name>` exits 0 on pass, 1 on fail |
-| Scanner interface | `scanner/security-scan.sh [aide|rkhunter|lynis]` exits 0 on pass, 1 on fail |
+| Scanner interface | `scanner/security-scan.sh [aide\|rkhunter\|lynis]` exits 0 on pass, 1 on fail |
 
 The following are **explicitly unstable** (may change without notice):
 

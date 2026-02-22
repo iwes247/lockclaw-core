@@ -261,6 +261,8 @@ For each candidate file/dir to delete, include:
 
 Proceed.
 
+[READY FOR NEXT VIBE]
+
 ## History
 
 HISTORY_START
