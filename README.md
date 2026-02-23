@@ -45,8 +45,10 @@ Shared policy definitions, audit scripts, and port allowlists consumed by [lockc
 | Path | Purpose |
 |------|---------|
 | `audit/audit.sh` | Validate that required policy files exist and contain correct values |
+| `audit/pre-flight.sh` | Fail-closed startup posture enforcement (ports, fs, mounts, caps, privileged checks) |
 | `audit/port-check.sh` | Verify no unexpected ports are listening (hard-fail, allowlist-driven) |
 | `policies/ports/` | Per-profile port allowlists (JSON) |
+| `policies/modes/` | Runtime mode policy (`hobby`, `builder`) including writable paths and egress posture |
 | `policies/ssh-requirements.txt` | Required SSH posture values |
 | `policies/sysctl-requirements.txt` | Required sysctl values (appliance only) |
 | `scanner/security-scan.sh` | Wrapper for AIDE + rkhunter + Lynis (appliance runtime) |
@@ -76,10 +78,12 @@ The following are considered **stable API** — breaking changes will bump the m
 
 | Stable | Path / Format |
 |--------|---------------|
-| Port allowlists | `policies/ports/*.json` — JSON schema: `{ "allowed": [{ "port": N, "proto": "tcp" }] }` |
+| Port allowlists | `policies/ports/*.json` — JSON schema: `{ "allowed_ports": [N, ...] }` |
+| Mode policies | `policies/modes/*.json` — JSON schema includes `mode`, `allowed_ports`, `writable_paths`, `egress_policy`, `egress_logging` |
 | SSH requirements | `policies/ssh-requirements.txt` — `key=value` per line |
 | Sysctl requirements | `policies/sysctl-requirements.txt` — `key=value` per line |
 | Audit script interface | `audit/audit.sh --overlay-dir <path>` exits 0 on pass, 1 on fail |
+| Pre-flight interface | `audit/pre-flight.sh --mode <hobby|builder>` exits 0 on pass, 1 on fail |
 | Port-check interface | `audit/port-check.sh --profile <name>` exits 0 on pass, 1 on fail |
 | Scanner interface | `scanner/security-scan.sh [aide\|rkhunter\|lynis]` exits 0 on pass, 1 on fail |
 
